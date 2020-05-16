@@ -15,7 +15,7 @@ const orm = {
     });
   },
   selectWhere: function(returnCol, tableInput, whereCol, condition) {
-    const queryString = "SELECT ?? FROM ?? WHERE ?? = ?";
+    const queryString = "SELECT ?? FROM ?? WHERE (??) = (?)";
     return new Promise((resolve, reject) => {
       connection.query(
         queryString,

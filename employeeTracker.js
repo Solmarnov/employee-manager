@@ -28,10 +28,16 @@ function init() {
           });
           break;
         case 'Add role':
-          addRole();
+          orm.selectCb("*", "job_roles", function(result) {
+            addRole(result);
+          });
           break;
         case 'Add employee':
-          addEmployee();
+          orm.selectCb("*", "employees", function(result) {
+            console.log("\nTABLE OF EMPLOYEES");
+            console.table(result);
+            addEmployee(result);
+          });
           break;
         case 'View departments':
           viewDepartments();
@@ -62,14 +68,13 @@ function Role(id, title, salary, departmentId) {
   this.title = title;
   this.salary = salary;
   this.department_id = departmentId;
-  // Need follow up question to assign role to department
 }
 
-function Employee(firstName, lastName) {
-  this.firstName = firstName;
-  this.lastName = lastName;
-  // Need follow up question to assign employee to a role
-  // Need follow up question to assign employee to a manager
+function Employee(firstName, lastName, roleId, managerId) {
+  this.first_name = firstName;
+  this.last_name = lastName;
+  this.role_id = roleId;
+  this.manager_id = managerId;
 }
 
 async function addDepartment(result) {
@@ -122,7 +127,7 @@ async function addDepartment(result) {
   }
 }
 
-async function addRole() {
+async function addRole(result) {
   try {
     const departments = await orm.select(
       "*", "departments");
@@ -143,7 +148,7 @@ async function addRole() {
     console.log("TABLE OF JOB ROLES:");
     console.table(leftJoinRolesDepts);
     const answer = await inquirer.prompt([
-      {
+      { // Question 1
         name: 'roleId',
         type: 'input',
         message: 'What is the new role ID?',
@@ -151,22 +156,23 @@ async function addRole() {
           const done = this.async();
           setTimeout(function() {
             if (isNaN(input)) {
-              done('Role ID must be a number.')
+              done('Role ID must be a number.');
               return;
             } else if (input.length < 6 || input.length > 6) {
-              done('Department ID length must be equal to 6 digits.')
+              done('Role ID length must be equal to 6 digits.');
+              return;
             }
             done(null, true);
             return;
           }, 500);
         }
       },
-      {
+      { // Question 2
         name: 'roleTitle',
         type: 'input',
         message: 'What is the title for the new role?'
       },
-      {
+      { // Question 3
         name: 'roleSalary',
         type: 'input',
         message: 'What is the salary for the new role?',
@@ -182,7 +188,7 @@ async function addRole() {
           }, 500);
         },
       },
-      {
+      { // Question 4
         name: 'departmentName',
         type: 'rawlist',
         choices: function() {
@@ -208,9 +214,92 @@ async function addRole() {
       roleSalary,
       departmentId
     } = answer;
+    for (let i = 0; i < result.length; i++) {
+      if (+roleId === result[i].role_id) {
+        console.log("\n" + roleId + " already exists.\n");
+        return init();
+      }
+    }
     const newRole = new Role(roleId, roleTitle, roleSalary, departmentId);
     await orm.insert("job_roles", newRole);
     console.log("\nNew job role added succesfully.");
+    return init();
+  } catch (error) {
+    console.log(error);
+  }
+}
+
+async function addEmployee(result) {
+  try {
+    const jobRoles = await orm.select("*", "job_roles");
+    const employees = await orm.select("*", "employees")
+    const answer = await inquirer.prompt([
+      { // Question 1
+        name: 'firstName',
+        type: 'input',
+        message: "What is the new employee's first name?"
+      },
+      { // Question 2
+        name: 'lastName',
+        type: 'input',
+        message: "What is the new employee's last name?"
+      },
+      { // Question 3
+        name: 'employeeRole',
+        type: 'rawlist',
+        choices: function() {
+          const choiceArray = [];
+          for (let i = 0; i < jobRoles.length; i++) {
+            choiceArray.push(jobRoles[i].title);
+          }
+          return choiceArray;
+        },
+        message: "What is the new employee's job role?"
+      },
+      { // Quesiton 4
+        name: 'employeeManager',
+        type: 'rawlist',
+        choices: function() {
+          const choiceArray = [];
+          for (let i = 0; i < employees.length; i++) {
+            choiceArray.push(employees[i].first_name + ' ' + employees[i].last_name);
+          }
+          choiceArray.push("");
+          return choiceArray;
+        }
+      }
+    ]);
+    const roleIdArr = await orm.selectWhere(
+      "role_id", 
+      "job_roles", 
+      "title",
+      answer.employeeRole
+    );
+    answer.roleId = roleIdArr[0].role_id;
+    const managerNameArr = answer.employeeManager.split(" ");
+    if (answer.employeeManager != "") {
+      const managerIdArr = await orm.selectWhere("employee_id", "employees", ["first_name", "last_name"], [managerNameArr[0], managerNameArr[1]]);
+      const managerId = managerIdArr[0].employee_id;
+      answer.managerId = managerId;
+    } else {
+      answer.managerId = null;
+    }
+    const {
+      firstName,
+      lastName,
+      roleId,
+      managerId
+    } = answer;
+    for (let i = 0; i < result.length; i++) {
+      if (firstName == result[i].first_name ||
+      lastName == result[i].last_name) {
+        console.log("\nEmployee record already exists. Try update employee instead.");
+        return init();
+      }
+    }
+    const newEmployee = new Employee(firstName, lastName, roleId, managerId);
+    await orm.insert("employees", newEmployee);
+    console.log("\nNew employee added successfully.");
     return init();
   } catch (error) {
     console.log(error);
