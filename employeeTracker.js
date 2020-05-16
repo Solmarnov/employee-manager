@@ -21,7 +21,9 @@ function init() {
     }).then(answer => {
       switch(answer.action) {
         case 'Add department':
-          orm.select("*", "departments", function(result) {
+          orm.selectCb("*", "departments", function(result) {
+            console.log("\nTABLE OF DEPARTMENTS");
+            console.table(result);
             addDepartment(result);
           });
           break;
@@ -55,10 +57,11 @@ function Department(id, name) {
   this.department_name = name;
 }
 
-function Role(id, title, salary) {
+function Role(id, title, salary, departmentId) {
   this.role_id = id;
   this.title = title;
   this.salary = salary;
+  this.department_id = departmentId;
   // Need follow up question to assign role to department
 }
 
@@ -96,7 +99,10 @@ async function addDepartment(result) {
         message: 'What is the new department name?'
       }
     ]);
-    const { departmentId, departmentName } = answer;
+    const { 
+      departmentId, 
+      departmentName 
+    } = answer;
     // Validation to ensure new department ID or name doesn't already exist
     for (let i = 0; i < result.length; i++) {
       if (+departmentId === result[i].department_id) {
@@ -108,110 +114,107 @@ async function addDepartment(result) {
       }
     }
     const newDepartment = new Department(departmentId, departmentName);
-    orm.insert("departments", newDepartment, () => {
-      console.log("\nNew department added successfully.")
-      return;
-    });
-    orm.select("*", "departments", () => {
-      return init();
-    });
+    await orm.insert("departments", newDepartment);
+    console.log("\nNew department added successfully.");
+    return init();
   } catch (error) {
     console.log(error);
   }
 }
 
-function addRole() {
-  connection.query("SELECT * FROM departments;", (err, res) => {
-    if (err) throw err;
-    departments = res;
-  });
-  const query = `
-    SELECT job_roles.role_id, job_roles.title, job_roles.salary, departments.department_name, departments.department_id
-    FROM job_roles
-    LEFT JOIN departments ON job_roles.department_id = departments.department_id
-    ORDER BY job_roles.role_id;
-  `;
-  connection.query(query, (err, res) => {
-    if (err) throw err;
-    console.log('TABLE OF JOB ROLES:')
-    console.table(res);
-    inquirer
-      .prompt([
-        {
-          name: 'roleId',
-          type: 'input',
-          message: 'What is the new role ID?',
-          validate: function(input) {
-            const done = this.async();
-            setTimeout(function() {
-              if (isNaN(input)) {
-                done('Role ID must be a number.')
-                return;
-              } else if (input.length < 6 || input.length > 6) {
-                done('Department ID length must be equal to 6 digits.')
-              }
-              done(null, true);
+async function addRole() {
+  try {
+    const departments = await orm.select(
+      "*", "departments");
+    const leftJoinRolesDepts = await orm.leftJoin(
+      [
+        "job_roles.role_id",
+        "job_roles.title",
+        "job_roles.salary",
+        "departments.department_name",
+        "departments.department_id"
+      ],
+      "job_roles",
+      "departments",
+      "job_roles.department_id",
+      "departments.department_id",
+      "job_roles.role_id"
+    );
+    console.log("TABLE OF JOB ROLES:");
+    console.table(leftJoinRolesDepts);
+    const answer = await inquirer.prompt([
+      {
+        name: 'roleId',
+        type: 'input',
+        message: 'What is the new role ID?',
+        validate: function(input) {
+          const done = this.async();
+          setTimeout(function() {
+            if (isNaN(input)) {
+              done('Role ID must be a number.')
               return;
-            }, 500);
-          }
-        },
-        {
-          name: 'roleTitle',
-          type: 'input',
-          message: 'What is the title for the new role?'
-        },
-        {
-          name: 'roleSalary',
-          type: 'input',
-          message: 'What is the salary for the new role?',
-          validate: function(input) {
-            const done = this.async();
-            setTimeout(function() {
-              if (isNaN(input)) {
-                done('Salary must be a number.')
-                return;
-              }
-              done(null, true);
-              return;
-            }, 500);
-          },
-        },
-        {
-          name: 'departmentName',
-          type: 'rawlist',
-          choices: function() {
-            const choiceArray = [];
-            for (let i = 0; i < departments.length; i++) {
-              choiceArray.push(departments[i].department_name);
+            } else if (input.length < 6 || input.length > 6) {
+              done('Department ID length must be equal to 6 digits.')
             }
-            return choiceArray;
-          },
-          message: 'Which department does the new role belong to?'
+            done(null, true);
+            return;
+          }, 500);
         }
-      ]).then(answer => {
-        const querySelect = "SELECT department_id FROM departments WHERE department_name = ?";
-        connection.query(querySelect, answer.departmentName, (err, res) => {
-          if (err) throw err;
-          answer.departmentId = res[0].department_id;
-        });
-        const queryInsert = "INSERT INTO job_roles (role_id, title, salary, department_id) VALUES (?, ?, ?, ?)";
-        connection.query(queryInsert, [answer.roleId, answer.roleTitle, answer.roleSalary, answer.departmentId], err => {
-          if (err) throw err;
-        });
-        const query = `
-          SELECT job_roles.role_id, job_roles.title, job_roles.salary, departments.department_name, departments.department_id
-          FROM job_roles
-          LEFT JOIN departments ON job_roles.department_id = departments.department_id
-          ORDER BY job_roles.role_id;
-        `;
-        connection.query(query, (err, res) => {
-          if (err) throw err;
-          console.log('TABLE OF JOB ROLES:')
-          console.table(res);
-          return init();
-        });
-      });
-  });
+      },
+      {
+        name: 'roleTitle',
+        type: 'input',
+        message: 'What is the title for the new role?'
+      },
+      {
+        name: 'roleSalary',
+        type: 'input',
+        message: 'What is the salary for the new role?',
+        validate: function(input) {
+          const done = this.async();
+          setTimeout(function() {
+            if (isNaN(input)) {
+              done('Salary must be a number.')
+              return;
+            }
+            done(null, true);
+            return;
+          }, 500);
+        },
+      },
+      {
+        name: 'departmentName',
+        type: 'rawlist',
+        choices: function() {
+          const choiceArray = [];
+          for (let i = 0; i < departments.length; i++) {
+            choiceArray.push(departments[i].department_name);
+          }
+          return choiceArray;
+        },
+        message: 'Which department does the new role belong to?'
+      }
+    ]);
+    const departmentIdArr = await orm.selectWhere(
+      "department_id", 
+      "departments", 
+      "department_name", 
+      answer.departmentName
+    );
+    answer.departmentId = departmentIdArr[0].department_id;
+    const { 
+      roleId, 
+      roleTitle,
+      roleSalary,
+      departmentId
+    } = answer;
+    const newRole = new Role(roleId, roleTitle, roleSalary, departmentId);
+    await orm.insert("job_roles", newRole);
+    console.log("\nNew job role added succesfully.");
+    return init();
+  } catch (error) {
+    console.log(error);
+  }
 }
 
 init();
