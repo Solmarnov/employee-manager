@@ -1,0 +1,18 @@
+{
+  "name": "employee-manager",
+  "version": "1.0.0",
+  "description": "",
+  "main": "employeeTracker.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node employeeTracker.js"
+  },
+  "keywords": [],
+  "author": "Scott Daniels",
+  "license": "",
+  "dependencies": {
+    "mysql": "^2.18.1",
+    "inquirer": "^7.1.0",
+    "console.table": "^0.10.0"
+  }
+}
