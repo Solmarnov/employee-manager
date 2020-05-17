@@ -11,13 +11,13 @@ Users wil require MySQL, Node, and its packages: Inquirer and MySQL, to run this
     <img src="https://user-images.githubusercontent.com/59265518/82135056-c7c39000-9841-11ea-8223-5fb85230f58b.png">
 
 1.  Select action:  
-    *  Add department
-    *  Add role
-    *  Add employoee
-    *  View departments
-    *  View role
-    *  View employees
-    *  Update employee role
+    *  [Add department](#add-department)
+    *  [Add role](#add-role)
+    *  [Add employoee](#add-employee)
+    *  [View departments](#view)
+    *  [View role](#view)
+    *  [View employees](#view)
+    *  [Update employee role](#update-employee-role)
     *  Exit
 
 ### Add department
