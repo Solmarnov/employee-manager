@@ -269,7 +269,8 @@ async function addEmployee(result) {
           }
           choiceArray.push("");
           return choiceArray;
-        }
+        },
+        message: "Who is the new employee's manager?"
       }
     ]);
     const roleIdArr = await orm.selectWhere(
@@ -296,7 +297,7 @@ async function addEmployee(result) {
     for (let i = 0; i < result.length; i++) {
       if (firstName == result[i].first_name ||
       lastName == result[i].last_name) {
-        console.log("\nEmployee record already exists. Try update employee instead.");
+        console.log("\nEmployee record already exists.");
         return init();
       }
     }
@@ -346,7 +347,7 @@ async function updateEmployeeRole(result) {
           }
           return choiceArray;
         },
-        message: 'Which employee would you like to update the job role for?'
+        message: "Which employee would you like to update the job role for?"
       },
       { // Question 2
         name: 'roleTo',
@@ -358,7 +359,8 @@ async function updateEmployeeRole(result) {
           }
           choiceArray.push("Cancel");
           return choiceArray;
-        }
+        },
+        message: "What is their new job role?"
       }
     ]);
     switch(answer.roleTo) {
