@@ -1,6 +1,7 @@
 const cTable = require('console.table');
 const inquirer = require ('inquirer');
 const orm = require('./config/orm.js');
+const connection = require('./config/connection.js');
 
 function init() {
   inquirer
@@ -49,7 +50,9 @@ function init() {
           viewTable(answer);
           break;
         case 'Update employee role':
-          updateEmployeeRole();
+          orm.selectCb("*", "employees", function(result) {
+            updateEmployeeRole(result);
+          })
           break;
         case 'Exit':
           connection.end();
@@ -61,20 +64,6 @@ function init() {
 function Department(id, name) {
   this.department_id = id;
   this.department_name = name;
-}
-
-function Role(id, title, salary, departmentId) {
-  this.role_id = id;
-  this.title = title;
-  this.salary = salary;
-  this.department_id = departmentId;
-}
-
-function Employee(firstName, lastName, roleId, managerId) {
-  this.first_name = firstName;
-  this.last_name = lastName;
-  this.role_id = roleId;
-  this.manager_id = managerId;
 }
 
 async function addDepartment(result) {
@@ -125,6 +114,13 @@ async function addDepartment(result) {
   } catch (error) {
     console.log(error);
   }
+}
+
+function Role(id, title, salary, departmentId) {
+  this.role_id = id;
+  this.title = title;
+  this.salary = salary;
+  this.department_id = departmentId;
 }
 
 async function addRole(result) {
@@ -229,6 +225,13 @@ async function addRole(result) {
   }
 }
 
+function Employee(firstName, lastName, roleId, managerId) {
+  this.first_name = firstName;
+  this.last_name = lastName;
+  this.role_id = roleId;
+  this.manager_id = managerId;
+}
+
 async function addEmployee(result) {
   try {
     const jobRoles = await orm.select("*", "job_roles");
@@ -278,18 +281,18 @@ async function addEmployee(result) {
     answer.roleId = roleIdArr[0].role_id;
     const managerNameArr = answer.employeeManager.split(" ");
     if (answer.employeeManager != "") {
-      const managerIdArr = await orm.selectWhere("employee_id", "employees", ["first_name", "last_name"], [managerNameArr[0], managerNameArr[1]]);
+      const managerIdArr = await orm.selectWhere(
+        "employee_id", 
+        "employees", 
+        ["first_name", "last_name"], 
+        [managerNameArr[0], managerNameArr[1]]
+      );
       const managerId = managerIdArr[0].employee_id;
       answer.managerId = managerId;
     } else {
       answer.managerId = null;
     }
-    const {
-      firstName,
-      lastName,
-      roleId,
-      managerId
-    } = answer;
+    const {firstName, lastName, roleId, managerId} = answer;
     for (let i = 0; i < result.length; i++) {
       if (firstName == result[i].first_name ||
       lastName == result[i].last_name) {
@@ -324,6 +327,58 @@ async function viewTable(answer) {
     console.log("\n" + title);
     console.table(result);
     return init();
+  } catch (error) {
+    console.log(error);
+  }
+}
+
+async function updateEmployeeRole(result) {
+  try {
+    const jobRoles = await orm.select("*", "job_roles");
+    const answer = await inquirer.prompt([
+      { // Question 1
+        name: 'updateEmployee',
+        type: 'rawlist',
+        choices: function() {
+          const choiceArray = [];
+          for (let i = 0; i < result.length; i++) {
+            choiceArray.push(result[i].first_name + ' ' + result[i].last_name);
+          }
+          return choiceArray;
+        },
+        message: 'Which employee would you like to update the job role for?'
+      },
+      { // Question 2
+        name: 'roleTo',
+        type: 'rawlist',
+        choices: function() {
+          const choiceArray = [];
+          for (let i = 0; i < jobRoles.length; i++) {
+            choiceArray.push(jobRoles[i].title);
+          }
+          choiceArray.push("Cancel");
+          return choiceArray;
+        }
+      }
+    ]);
+    switch(answer.roleTo) {
+      case "Cancel":
+        init();
+        break;
+      default:
+        const jobRoleIdArr = await orm.selectWhere("role_id", "job_roles", "title", answer.roleTo);
+        const employeeNameArr = answer.updateEmployee.split(" ");
+        await orm.update(
+          "employees", 
+          "role_id", 
+          jobRoleIdArr[0].role_id, 
+          ["first_name", "last_name"], 
+          [employeeNameArr[0], employeeNameArr[1]]
+        );
+        console.log("\nEmployee role updated successfully.");
+        init();
+        break;
+    }
   } catch (error) {
     console.log(error);
   }
