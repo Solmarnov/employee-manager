@@ -40,13 +40,13 @@ function init() {
           });
           break;
         case 'View departments':
-          viewDepartments();
+          viewTable(answer);
           break;
         case 'View roles':
-          viewRoles();
+          viewTable(answer);
           break;
         case 'View employees':
-          viewEmployees();
+          viewTable(answer);
           break;
         case 'Update employee role':
           updateEmployeeRole();
@@ -55,7 +55,7 @@ function init() {
           connection.end();
           break;
       }
-    })
+    });
 }
 
 function Department(id, name) {
@@ -300,6 +300,29 @@ async function addEmployee(result) {
     const newEmployee = new Employee(firstName, lastName, roleId, managerId);
     await orm.insert("employees", newEmployee);
     console.log("\nNew employee added successfully.");
+    return init();
+  } catch (error) {
+    console.log(error);
+  }
+}
+
+async function viewTable(answer) {
+  let table = '';
+  let title = '';
+  if (answer.action == 'View departments') {
+    table = 'departments';
+    title = "TABLE OF DEPARTMENTS";
+  } else if (answer.action == 'View roles') {
+    table = 'job_roles';
+    title = "TABLE OF JOB ROLES"
+  } else if (answer.action == 'View employees') {
+    table = 'employees';
+    title = "TABLE OF EMPLOYEES"
+  }
+  try {
+    result = await orm.select("*", table);
+    console.log("\n" + title);
+    console.table(result);
     return init();
   } catch (error) {
     console.log(error);
